@@ -81,6 +81,19 @@ cargo build --release
 The resulting executable is `target/release/ntlmrain` (`ntlmrain.exe` on
 Windows). Shader sources and the DES LUT are embedded in the executable.
 
+## Performance
+
+The following empirical measurements cover a complete NetNTLMv1 response: two precompute passes, two table lookups and verification of both candidate sets. The listed totals are the observed complete runtimes, including lookup.
+
+| Compute path | Device and configuration | Precompute | Verify | Total |
+|---|---|---:|---:|---:|
+| WebGPU | NVIDIA RTX 4070 Ti, Compact, WG 64 | 1 min × 2 (6.5 G DES steps/s) | 3 min | 7 min |
+| WebGPU | Apple MacBook M1 Pro, Expanded, WG 1024 | 6 min × 2 (1.2 G DES steps/s) | ~10 min | 23 min |
+| WebGPU | Intel Core Ultra 9 185H, Intel Arc, Compact, WG 512 | 20 min × 2 | ~20 min | 1 h 1 min |
+| CPU | Intel Core Ultra 9 185H, 22 threads | 28 min × 2 | ~46 min | 1 h 43 min |
+| CPU | AMD Ryzen 7 7800X3D, 16 threads | 14 min × 2 | ~30 min | 59 min |
+
+They are real-life measurements that can vary. Candidate counts are variable per ciphertext, candidate verification is consequently variable too, and remote lookup can be affected by queue and transfer time. WebGPU performance also depends on the browser, driver and the selected configuration.
 
 ## Responsible use
 
