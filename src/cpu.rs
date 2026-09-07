@@ -378,15 +378,17 @@ pub fn precompute(config: &PrecomputeConfig) -> Vec<u64> {
 /// Like [`precompute`], invoking `progress` periodically with step-weighted totals.
 ///
 /// Uses 512-wide bitsliced NetNTLMv1 (`fast-des` on x86_64, portable elsewhere)
-/// with per-thread wave scheduling
-/// over Rayon chunks. Falls back to scalar [`precompute_one`] only inside tests
-/// and for trivial sizes.
+/// with wave scheduling over cost-balanced Rayon batches. Falls back to scalar
+/// [`precompute_one`] only inside tests and for trivial sizes.
 pub fn precompute_with_progress<F>(config: &PrecomputeConfig, progress: F) -> Vec<u64>
 where
     F: Fn(PrecomputeProgress) + Sync,
 {
-    use crate::bitslice::BITSLICE_WIDTH;
-    use crate::params::exact_precompute_steps;
+    use crate::{
+        bitslice::BITSLICE_WIDTH,
+        cpu_schedule::weighted_batch_ranges,
+        params::{exact_precompute_steps, steps_for_abs},
+    };
     use rayon::prelude::*;
     use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
@@ -407,20 +409,33 @@ where
         });
     };
 
-    // Each Rayon job owns a contiguous abs range and wave-schedules bitsliced DES.
-    let chunk = ((out_len as usize / rayon::current_num_threads()).max(BITSLICE_WIDTH))
-        .next_multiple_of(BITSLICE_WIDTH)
-        .max(BITSLICE_WIDTH);
+    let ranges = weighted_batch_ranges(
+        out_len as usize,
+        rayon::current_num_threads(),
+        BITSLICE_WIDTH,
+        |abs| {
+            steps_for_abs(
+                abs as u32,
+                config.chain_len,
+                config.device_num,
+                config.total_devices,
+            )
+        },
+    );
 
-    let mut output = vec![0u64; out_len as usize];
-    output
-        .par_chunks_mut(chunk)
-        .enumerate()
-        .for_each(|(chunk_idx, out_chunk)| {
-            let abs_base = (chunk_idx * chunk) as u32;
-            precompute_chunk_bitslice(config, reduction_offset, abs_base, out_chunk, &report);
-        });
-    output
+    let batches = ranges
+        .into_par_iter()
+        .map(|range| {
+            precompute_chunk_bitslice(
+                config,
+                reduction_offset,
+                range.start as u32,
+                range.len(),
+                &report,
+            )
+        })
+        .collect::<Vec<_>>();
+    batches.into_iter().flatten().collect()
 }
 
 struct WaveState {
@@ -434,9 +449,10 @@ fn precompute_chunk_bitslice<F>(
     config: &PrecomputeConfig,
     reduction_offset: u32,
     abs_base: u32,
-    out_chunk: &mut [u64],
+    out_len: usize,
     report: &F,
-) where
+) -> Vec<u64>
+where
     F: Fn(u64, u32) + Sync,
 {
     use crate::bitslice::{
@@ -448,12 +464,10 @@ fn precompute_chunk_bitslice<F>(
     let device_num = config.device_num;
     let td = config.total_devices.max(1);
     let hash = config.hash;
-    let out_len = out_chunk.len();
-
     // Publish progress from inside the bitslice worker. Deferring these events
     // until a complete Rayon chunk returns can leave long production runs
     // apparently idle for minutes.
-    let final_out = with_bitslice_stack(move || {
+    with_bitslice_stack(move || {
         let mut out_chunk = vec![0u64; out_len];
         let mut pending_steps = 0u64;
         let mut pending_indices = 0u32;
@@ -559,9 +573,7 @@ fn precompute_chunk_bitslice<F>(
         push_report(0, 0, true);
 
         out_chunk
-    });
-
-    out_chunk.copy_from_slice(&final_out);
+    })
 }
 
 /// Convenience with default workgroup size.
@@ -674,6 +686,34 @@ mod tests {
                 0,
             ));
         }
+        assert_eq!(bit, scalar);
+    }
+
+    #[test]
+    fn cost_balanced_precompute_batches_preserve_output_order() {
+        let cfg = PrecomputeConfig {
+            hash: [0x25, 0x77, 0x89, 0x87, 0x04, 0x01, 0xc9, 0x65],
+            table_index: 0,
+            chain_len: 1_026,
+            device_num: 0,
+            total_devices: 1,
+            workgroup_size: 64,
+            gpu_target_steps_per_dispatch: crate::params::GPU_TARGET_STEPS_PER_DISPATCH,
+        };
+        let bit = precompute(&cfg);
+        let scalar = (0..cfg.output_len())
+            .map(|abs| {
+                precompute_one(
+                    &cfg.hash,
+                    cfg.reduction_offset(),
+                    cfg.chain_len,
+                    cfg.device_num,
+                    cfg.total_devices,
+                    abs,
+                    0,
+                )
+            })
+            .collect::<Vec<_>>();
         assert_eq!(bit, scalar);
     }
 

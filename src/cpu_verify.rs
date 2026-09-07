@@ -12,6 +12,7 @@ use crate::{
         BITSLICE_WIDTH, index_to_fast_des_key, netntlmv1_bitslice_batch, with_bitslice_stack,
     },
     cpu::is_exact_des_key_match,
+    cpu_schedule::weighted_batch_ranges,
     params::BYTE7_MASK,
 };
 
@@ -90,14 +91,10 @@ where
     let reduction_offset = u64::from(table_index) << 16;
     let target_hash = u64::from_le_bytes(target);
 
-    // Four jobs per worker keeps late-chain lane occupancy high while still
-    // allowing Rayon to balance candidate-position skew between workers.
     let threads = rayon::current_num_threads().max(1);
-    let chunk_size = candidates
-        .len()
-        .div_ceil(threads.saturating_mul(4))
-        .max(BITSLICE_WIDTH)
-        .next_multiple_of(BITSLICE_WIDTH);
+    let ranges = weighted_batch_ranges(candidates.len(), threads, BITSLICE_WIDTH, |index| {
+        u64::from(candidates[index].position) + 1
+    });
 
     let publish = |new_steps: u64, new_completed: u64, new_keys: u64| {
         let done = candidates_done.fetch_add(new_completed, Ordering::Relaxed) + new_completed;
@@ -112,10 +109,11 @@ where
         });
     };
 
-    candidates.par_chunks(chunk_size).for_each(|chunk| {
+    ranges.into_par_iter().for_each(|range| {
         if stopped.load(Ordering::Relaxed) {
             return;
         }
+        let chunk = &candidates[range];
         let local_hits = with_bitslice_stack(|| {
             let mut active = chunk
                 .iter()
@@ -302,6 +300,32 @@ mod tests {
         let first = verify_candidates_with_progress(&candidates, target, 0, false, |_| {});
         assert_eq!(first.keys, vec![start]);
         assert!(first.steps_completed < first.steps_total);
+    }
+
+    #[test]
+    fn cost_balanced_verify_batches_preserve_hits_and_accounting() {
+        let known_start = 0x0088_46f7_eaee_8fb1;
+        let target = netntlmv1_hash(&byte7_index_to_plaintext(known_start));
+        let mut candidates = (0u64..1_537)
+            .map(|index| CpuCandidate {
+                start: 0x10_0000 + index,
+                position: (index % 8) as u32,
+            })
+            .collect::<Vec<_>>();
+        candidates[700] = CpuCandidate {
+            start: known_start,
+            position: 0,
+        };
+        let expected_steps = candidates
+            .iter()
+            .map(|candidate| u64::from(candidate.position) + 1)
+            .sum::<u64>();
+
+        let result = verify_candidates_with_progress(&candidates, target, 0, true, |_| {});
+
+        assert_eq!(result.keys, vec![known_start]);
+        assert_eq!(result.candidates_completed, candidates.len() as u64);
+        assert_eq!(result.steps_completed, expected_steps);
     }
 
     #[test]

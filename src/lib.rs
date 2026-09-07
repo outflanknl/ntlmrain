@@ -8,6 +8,7 @@ pub mod cli;
 pub mod compute;
 pub mod config;
 pub mod cpu;
+mod cpu_schedule;
 pub mod cpu_verify;
 pub mod formats;
 pub mod gpu;
