@@ -14,6 +14,25 @@ pub const NETNTLMV1_CHALLENGE: u64 = 0x1122_3344_5566_7788;
 /// Keys hashed per bitslice wave.
 pub const BITSLICE_WIDTH: usize = 512;
 
+const BITSLICE_STACK_SIZE: usize = 32 * 1024 * 1024;
+
+/// Run bitsliced DES with enough stack for its large generated temporaries.
+pub fn with_bitslice_stack<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send,
+    R: Send,
+{
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .name("ntlmrain-bitslice".into())
+            .stack_size(BITSLICE_STACK_SIZE)
+            .spawn_scoped(scope, f)
+            .expect("spawn bitslice thread")
+            .join()
+            .expect("bitslice thread panicked")
+    })
+}
+
 /// Map a 56-bit rainbow index to the 56-bit key word expected by the bitslice path.
 #[inline]
 pub fn index_to_fast_des_key(index: u64) -> u64 {
@@ -35,23 +54,6 @@ mod imp {
 
     const LANES: usize = 64;
     const GROUPS: usize = 8;
-
-    /// `fast-des` keeps large temporaries on the stack.
-    pub fn with_bitslice_stack<F, R>(f: F) -> R
-    where
-        F: FnOnce() -> R + Send,
-        R: Send,
-    {
-        std::thread::scope(|s| {
-            std::thread::Builder::new()
-                .name("fast-des-bitslice".into())
-                .stack_size(32 * 1024 * 1024)
-                .spawn_scoped(s, f)
-                .expect("spawn bitslice thread")
-                .join()
-                .expect("bitslice thread panicked")
-        })
-    }
 
     pub fn netntlmv1_bitslice_batch(keys_in: &[u64], out: &mut [u64]) {
         debug_assert!(keys_in.len() <= BITSLICE_WIDTH);
@@ -80,14 +82,6 @@ mod imp {
 
     const LANES: usize = 64;
 
-    #[inline]
-    pub fn with_bitslice_stack<F, R>(f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        f()
-    }
-
     pub fn netntlmv1_bitslice_batch(keys_in: &[u64], out: &mut [u64]) {
         debug_assert!(keys_in.len() <= BITSLICE_WIDTH);
         debug_assert_eq!(keys_in.len(), out.len());
@@ -113,7 +107,7 @@ mod imp {
     }
 }
 
-pub use imp::{netntlmv1_bitslice_batch, with_bitslice_stack};
+pub use imp::netntlmv1_bitslice_batch;
 
 #[cfg(test)]
 mod tests {
