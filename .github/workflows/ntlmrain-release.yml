@@ -51,7 +51,6 @@ jobs:
           Copy-Item "target/${{ matrix.target }}/release/${{ matrix.executable }}" package/
           Copy-Item README.md package/
           Copy-Item LICENSE package/
-          Copy-Item RESPONSIBLE_USE.md package/
           Copy-Item THIRD_PARTY_NOTICES.txt package/
           Compress-Archive -Path package/* -DestinationPath "${{ matrix.artifact }}.zip"
           (Get-FileHash "${{ matrix.artifact }}.zip" -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.artifact }}.zip" | Set-Content "${{ matrix.artifact }}.zip.sha256"
