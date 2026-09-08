@@ -74,12 +74,20 @@ pub fn error_exit_code(error: &anyhow::Error) -> i32 {
 #[command(
     name = "ntlmrain",
     version,
-    about = "Native NetNTLMv1 rainbow-table recovery"
+    about = "Recover NT hashes from NetNTLMv1 responses using local WebGPU computation and local/remote table lookup."
 )]
 struct Cli {
-    #[arg(long, global = true)]
+    #[arg(
+        long,
+        global = true,
+        help = "Write one machine-readable JSON result document to stdout"
+    )]
     json: bool,
-    #[arg(long, global = true)]
+    #[arg(
+        long,
+        global = true,
+        help = "Suppress progress and status output written to stderr"
+    )]
     quiet: bool,
     #[arg(long, global = true, value_name = "PATH")]
     config: Option<PathBuf>,
@@ -101,11 +109,11 @@ struct Cli {
 enum Command {
     /// Run precompute, lookup, verification, and local DES3 recovery when applicable.
     Crack(CrackArgs),
-    /// Generate Web2-compatible NTLMEND1 endpoint files.
+    /// Generate endpoint files for table lookup.
     Precompute(PrecomputeArgs),
-    /// Resolve one or two endpoint files using the remote service or local table.
+    /// Find candidate chains using the remote service or a local table.
     Lookup(LookupCommandArgs),
-    /// Verify one or two NTLMCAN1 candidate files on the selected compute engine.
+    /// Verify candidate chains and recover plaintext chunks.
     Verify(VerifyArgs),
     /// Benchmark and cache a GPU shader/workgroup selection.
     Tune(TuneArgs),

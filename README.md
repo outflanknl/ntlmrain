@@ -3,7 +3,7 @@
   <h1 align="center">NTLMRain</h1>
 </p>
 
-`ntlmrain` is a standalone native command-line client for cracking NetNTLMv1 responses (specific to challenge `1122334455667788`).
+`ntlmrain` is a standalone native command-line client for recovering NT hashes from NetNTLMv1 responses using local WebGPU computation and local/remote table lookup (specific to challenge `1122334455667788`).
 
 It performs endpoint precomputation and candidate verification with WebGPU WGSL shaders and can fallback to a native CPU bitsliced implementation.
 
@@ -87,8 +87,9 @@ The following empirical measurements cover a complete NetNTLMv1 response: two pr
 
 | Compute path | Device and configuration | Precompute | Verify | Total |
 |---|---|---:|---:|---:|
-| WebGPU | NVIDIA RTX 4070 Ti, Compact, WG 64 | 1 min × 2 (6.5 G DES steps/s) | 3 min | 7 min |
-| WebGPU | Apple MacBook M1 Pro, Expanded, WG 1024 | 6 min × 2 (1.2 G DES steps/s) | ~10 min | 23 min |
+| WebGPU | NVIDIA GeForce RTX 4070 Ti, Compact, WG 64 | 1 min × 2 (6.5 G DES steps/s) | ~3 min | 7 min |
+| WebGPU | NVIDIA GeForce RTX 2080 SUPER, Compact WG 64 | 3 min x 2 (2.1 G DES steps/s) | ~7 min | 14 min |
+| WebGPU | Apple MacBook M1 Pro, Expanded, WG 1024 | 6 min × 2 (1.1 G DES steps/s) | ~10 min | 23 min |
 | WebGPU | Intel Core Ultra 9 185H, Intel Arc, Compact, WG 512 | 20 min × 2 | ~20 min | 1 h 1 min |
 | CPU | Intel Core Ultra 9 185H, 22 threads | 28 min × 2 | ~46 min | 1 h 43 min |
 | CPU | AMD Ryzen 7 7800X3D, 16 threads | 14 min × 2 | ~30 min | 59 min |
@@ -101,7 +102,7 @@ Don't be evil and don't be annoying. Use the tooling only for authorized work, r
 
 ## License and acknowledgements
 
-Created by Outflank (Fortra).
+Created by Cedric Van Bockhaven at Outflank (Fortra).
 
 This work builds on a long line of research and implementation:
 
@@ -116,7 +117,7 @@ In particular thanks to:
 - **Dirk-jan Mollema** for testing the clients and helping squash a steady supply of bugs.
 - All the people who tolerated me shouting about rainbow tables out of nowhere from time to time.
 
-The client is licensed under the Apache License, Version 2.0; see LICENSE.
+The client was built using AI. The code is licensed under the Apache License, Version 2.0; see LICENSE.
 
 The shader implementation was inspired on the NetNTLMv1 kernel by Nic Losby in the forked [RainbowCrackalack](https://github.com/blurbdust/rainbowcrackalack) version. The CPU DES implementation is based on [fast-des](https://github.com/TimTrademark/fast-des) by TimTrademark.
 
