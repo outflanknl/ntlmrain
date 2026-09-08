@@ -31,9 +31,6 @@ when dependency versions or features change.
   are covered by Apache-2.0. The dependency metadata and exact versions are
   recorded in Cargo.lock.
 
-The per-license files that previously lived under LICENSES/ were consolidated
-here. The root LICENSE is the single copy of the Apache-2.0 text.
-
 ## MIT
 
 Copyright (c) 2014 The Rust Project Developers
