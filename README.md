@@ -96,6 +96,22 @@ The following empirical measurements cover a complete NetNTLMv1 response: two pr
 
 They are real-life measurements that can vary. Candidate counts are variable per ciphertext, candidate verification is consequently variable too, and remote lookup can be affected by queue and transfer time. WebGPU performance also depends on the browser, driver and the selected configuration.
 
+## Using local tables
+
+NTLMRain can use the centrally hosted lookup service. However, you can also lookups against locally stored tables.
+
+Download the tables from [tables.ntlmrain.com](https://tables.ntlmrain.com/) into one directory.
+
+Run all three recovery stages using the local table:
+
+```text
+ntlmrain crack --netntlmv1 <capture-or-48-hex-response> --lookup local --data-base '/tables/netntlmv1_byte#7-7_0_881689x134217668.grtb' --index '/tables/netntlmv1_byte#7-7_0_881689x134217668.gidx'
+```
+
+Note: pass the common GRTB base name (without `.0000`).
+
+On nix, raise the open-file limit before use: `ulimit -n 65536`.
+
 ## Responsible use
 
 Don't be evil and don't be annoying. Use the tooling only for authorized work, respect the remote lookup queue and rate limits (one at a time), and do not automate enough parallel requests to monopolize it. Abusive clients will be rate-limited or temporarily blocked so the shared service remains usable for everyone.
