@@ -28,11 +28,14 @@ Use `ntlmrain <command> --help` for further help and additional options.
 `ntlmrain crack` runs the three explicit phases:
  * precomputes and saves every endpoint file (local)
  * looks up and saves every candidate file (local or remote) 
- * verifies the saved candidates (local) 
+ * verifies the saved candidates (local)
 
-The tooling retains intermediate files under `artifacts/` by default, allowing `lookup` and `verify` to be run/resumed separately later.
+> [!IMPORTANT]
+> By default, remote lookup is performed against the hosted table service. While neither the NetNTLMv1 response nor the cracked hash leave your machine, endpoints/candidates are exchanged with the remote service. [Read more](https://www.outflank.nl/blog/2026/09/08/netntlmv1-is-dead-long-live-netntlmv1/#:~:text=this%20does%20not%20make%20a%20lookup%20fully%20anonymous).
 
 Remote submissions may wait in the server queue. The tool shows this after upload and reports `queue position N` whenever the service provides it. Processing rate and ETA begin only after the submission is running.
+
+The tooling retains intermediate files under `artifacts/` by default, allowing `lookup` and `verify` to be run/resumed separately later.
 
 ![NTLMRain CLI](assets/gpucrack.png)
 
