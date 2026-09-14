@@ -126,7 +126,7 @@ Created by Cedric Van Bockhaven at Outflank (Fortra).
 This work builds on a long line of research and implementation:
 
 - **Nic Losby** led the effort to create and publish the NetNTLMv1 tables, documented in the January 2026 [Google/Mandiant release post](https://cloud.google.com/blog/topics/threat-intelligence/net-ntlmv1-deprecation-rainbow-tables/). Without that multi-year effort there would be no dataset to convert or use.
-- **Joe Testa** created [RainbowCrackalack](https://github.com/jtesta/rainbowcrackalack), whose table algorithms and specialized NetNTLMv1 work informed the clients and our independent compatibility tests.
+- **Joe Testa** created [RainbowCrackalack](https://github.com/jtesta/rainbowcrackalack), whose table algorithms and specialized NetNTLMv1 work formed an important technical foundation for this project.
 - **David Hulton** built and operated the FPGA-backed DES cracking infrastructure. **Moxie Marlinspike** developed ChapCrack; together they presented the practical MS-CHAPv2 reduction and DES service at DEF CON 20. Hulton later documented the [crack.sh service and API](https://media.ccc.de/v/SHA2017-320-legacy_crypto_never_dies).
 - **Skyler Knecht** documented the modern table workflow in the recent [SpecterOps article](https://specterops.io/blog/2026/04/16/into-the-rainbow-googles-ntlmv1-rainbow-tables-explained-in-a-bit-too-much-detail/).
 - **Philippe Oechslin** introduced rainbow tables as the time-memory trade-off on which this work ultimately relies.
