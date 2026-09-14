@@ -107,11 +107,11 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Run precompute, lookup, verification, and local DES3 recovery when applicable.
+    /// Run the precompute, lookup, and verification stages. Uses the remote lookup service by default.
     Crack(CrackArgs),
     /// Generate endpoint files for table lookup.
     Precompute(PrecomputeArgs),
-    /// Find candidate chains using the remote service or a local table.
+    /// Find candidate chains using the hosted remote service (default) or a local table.
     Lookup(LookupCommandArgs),
     /// Verify candidate chains and recover plaintext chunks.
     Verify(VerifyArgs),
@@ -220,6 +220,7 @@ enum LookupBackendArg {
 
 #[derive(Clone, Debug, Args)]
 struct LookupArgs {
+    /// Table lookup backend; remote uses the hosted service and is the default.
     #[arg(long = "lookup", value_enum, default_value_t = LookupBackendArg::Remote)]
     lookup_backend: LookupBackendArg,
     #[arg(long)]
@@ -531,6 +532,14 @@ fn show_parameters(
         progress.message(format!("    DES3 (CT3): {}", hex::encode_upper(target)));
     }
     progress.message(format!("    challenge: {FIXED_CHALLENGE_HEX}"));
+    progress.message("");
+}
+
+fn announce_remote_lookup(progress: &ProgressOutput) {
+    progress.message("[!] Remote table lookup is enabled:");
+    progress.message(
+        "    Endpoints and candidates are exchanged with the remote service. The NetNTLMv1 response and recovered NT hash do not leave your machine.",
+    );
     progress.message("");
 }
 
@@ -1024,6 +1033,9 @@ fn command_lookup(
     config: &Config,
     progress: &ProgressOutput,
 ) -> Result<(), CliError> {
+    if matches!(args.lookup.lookup_backend, LookupBackendArg::Remote) {
+        announce_remote_lookup(progress);
+    }
     let files = resolve_stage_files(&args.endpoints, args.role)?;
     let input_suffix = shared_endpoint_suffix(&files)?;
     let engine = create_lookup_engine(&args.lookup, config)?;
@@ -1139,6 +1151,9 @@ fn command_crack(
         parsed.target.k3_ciphertext(),
         &started_at,
     );
+    if matches!(args.lookup.lookup_backend, LookupBackendArg::Remote) {
+        announce_remote_lookup(progress);
+    }
     let run = RunArtifacts::create(artifact_root).map_err(input_error)?;
     progress.message("selecting compute engine...");
     let context = create_compute(&args.compute, progress)?;
