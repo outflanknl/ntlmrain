@@ -7,6 +7,8 @@
 
 It performs endpoint precomputation and candidate verification with WebGPU WGSL shaders and can fallback to a native CPU bitsliced implementation.
 
+**Web service: [https://lookup.ntlmrain.com](https://lookup.ntlmrain.com)**
+
 Table lookup can use the hosted production HTTP service or local GRTB/GIDX files (downloadable from [tables.ntlmrain.com](https://tables.ntlmrain.com/)).
 
 Refer to the [Outflank Blog - NetNTLMv1 Is Dead. Long Live NetNTLMv1](https://www.outflank.nl/blog/2026/09/08/netntlmv1-is-dead-long-live-netntlmv1/).
